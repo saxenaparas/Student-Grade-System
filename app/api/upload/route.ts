@@ -1,4 +1,4 @@
-// app/api/upload/route.ts (NORMALIZED header parser + insert + history)
+// app/api/upload/route.ts
 import dbConnect from "@/lib/mongodb";
 import Student from "@/models/Student";
 import Upload from "@/models/Upload";
@@ -7,22 +7,36 @@ import { NextResponse } from "next/server";
 
 function normalizeKey(k: any) {
   if (k === null || k === undefined) return "";
-  return String(k).toLowerCase().replace(/[\s_]+/g, ""); // remove spaces/underscores, lowercase
+  return String(k).toLowerCase().replace(/[\s_]+/g, "");
 }
-
 function toNum(v: any, fallback = 0) {
-  const n = Number(String(v || "").replace(/[, ]+/g, ""));
+  const n = Number(String(v ?? "").replace(/[, ]+/g, ""));
   return isNaN(n) ? fallback : n;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: Request, context: any) {
   await dbConnect();
   try {
     const { filename, data } = await req.json();
     if (!data) return NextResponse.json({ success: false, error: "No file data" }, { status: 400 });
 
     const buffer = Buffer.from(data, "base64");
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    // detect CSV by filename extension or by simple sniff
+    const isCSVByName = typeof filename === "string" && filename.toLowerCase().endsWith(".csv");
+    let workbook;
+    if (isCSVByName) {
+      const text = buffer.toString("utf8");
+      workbook = XLSX.read(text, { type: "string", raw: false });
+    } else {
+      // Try read as workbook; if fails and looks like CSV, fallback to string
+      try {
+        workbook = XLSX.read(buffer, { type: "buffer" });
+      } catch (e) {
+        const text = buffer.toString("utf8");
+        workbook = XLSX.read(text, { type: "string", raw: false });
+      }
+    }
+
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rawRows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
@@ -36,18 +50,14 @@ export async function POST(req: Request) {
       return mapped;
     });
 
-    // For each normalized row, pick fields using flexible keys
+    // Map commonly used normalized keys to proper fields
     const docs = normalizedRows
       .map((nr) => {
-        const id =
-          String(nr.studentid ?? nr.student_id ?? nr.id ?? nr.s ?? nr.roll ?? "").trim();
-        const name =
-          String(nr.studentname ?? nr.student_name ?? nr.name ?? nr.fullname ?? "").trim();
+        const id = String(nr.studentid ?? nr.student_id ?? nr.id ?? nr.roll ?? nr.s ?? "").trim();
+        const name = String(nr.studentname ?? nr.student_name ?? nr.name ?? nr.fullname ?? "").trim();
 
-        const total =
-          toNum(nr.totalmarks ?? nr.total_marks ?? nr.total ?? nr.totalmark ?? 100, 100);
-        const marks =
-          toNum(nr.marksobtained ?? nr.marks_obtained ?? nr.marks ?? nr.obtained ?? 0, 0);
+        const total = toNum(nr.totalmarks ?? nr.total_marks ?? nr.total ?? nr.totalmark ?? 100, 100);
+        const marks = toNum(nr.marksobtained ?? nr.marks_obtained ?? nr.marks ?? nr.obtained ?? 0, 0);
 
         if (!id || !name) return null;
 
@@ -61,14 +71,9 @@ export async function POST(req: Request) {
       })
       .filter(Boolean);
 
-    if (docs.length === 0) {
+    if (!docs.length) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "No valid rows found in file",
-          parsedCount: rawRows.length,
-          sampleNormalized: normalizedRows.slice(0, 10),
-        },
+        { success: false, error: "No valid rows found in file", parsedCount: rawRows.length, sampleNormalized: normalizedRows.slice(0, 10) },
         { status: 400 }
       );
     }
@@ -76,12 +81,7 @@ export async function POST(req: Request) {
     const inserted = await Student.insertMany(docs);
     const upload = await Upload.create({ filename: filename ?? "unknown", count: inserted.length });
 
-    return NextResponse.json({
-      success: true,
-      count: inserted.length,
-      uploadId: upload._id,
-      parsedCount: rawRows.length,
-    });
+    return NextResponse.json({ success: true, count: inserted.length, uploadId: upload._id, parsedCount: rawRows.length });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message || String(err) }, { status: 500 });
   }
