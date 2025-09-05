@@ -27,50 +27,58 @@ A full-stack application to manage student grades, built with **Next.js 15**, **
 ```
 student-grade-system/
 │
-├── app/                 # Next.js App Router pages & API routes
-│   ├── api/             # API endpoints (upload, students, uploads)
-│   └── page.tsx         # Main UI
+├── .next/                       # Next.js build output (auto-generated)
+├── .git/                        # Git repo metadata
+├── app/                         # Next.js App Router pages & API routes
+│   ├── api/                     # API endpoints
+│   │   ├── students/            # student CRUD API
+│   │   │   └── [id]/route.ts    # PUT / DELETE for a specific student
+│   │   ├── upload/              # file upload API
+│   │   │   └── route.ts         # POST /api/upload
+│   │   └── uploads/             # upload history API
+│   │       └── route.ts         # GET /api/uploads
+│   ├── favicon.ico              # app favicon
+│   ├── globals.css              # Tailwind + global styles
+│   ├── layout.tsx               # Root layout (imports globals.css)
+│   └── page.tsx                 # Main UI page (Upload + Students + History)
 │
-├── components/          # React components (form, tables, history)
-├── lib/                 # MongoDB connection helper
-├── models/              # Mongoose models (Student, Upload)
-├── scripts/             # Utility scripts (sample data generator)
-├── sample_data.xlsx     # Sample file for testing
+├── components/                  # React client components
+│   ├── UploadForm.tsx           # file input, sends base64 to /api/upload
+│   ├── StudentsTable.tsx        # displays students, edit & delete UI
+│   └── UploadHistory.tsx        # shows past uploads (filename, count, time)
+│
+├── lib/                         # helper libraries
+│   └── mongodb.ts               # mongoose connection helper
+│
+├── models/                      # Mongoose models
+│   ├── Student.ts               # Student schema/model
+│   └── Upload.ts                # Upload history schema/model
+│
+├── public/                      # static assets served by Next.js
+│   └── (images, icons, etc.)
+│
+├── scripts/                     # utility scripts
+│   └── create-sample.js         # generates sample_data.xlsx (optional)
+│
+├── styles/                      # optional extra CSS files
+│   └── (if any)
+│
+├── node_modules/                # installed packages (auto-generated)
+│
+├── .env.local                   # local environment variables (MONGODB_URI)
+├── .gitignore
+├── eslint.config.mjs
+├── next-env.d.ts
+├── next.config.ts
 ├── package.json
-└── README.md
-```
+├── package-lock.json
+├── postcss.config.mjs
+├── README.md                    # project README (what to include)
+├── sample_data.xlsx             # sample Excel for assignment/testing
+├── tailwind.config.cjs
+├── tsconfig.json
+└── README.md                    # README file
 
----
-
-## ⚙️ Setup Instructions
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/<your-username>/Student-Grade-System.git
-cd Student-Grade-System
-```
-
-### 2. Install Dependencies
-```bash
-npm install
-```
-
-### 3. Environment Variables
-Create a `.env.local` file in the root directory:
-```
-MONGODB_URI="your-mongodb-atlas-uri"
-```
-
-### 4. Run Locally
-```bash
-npm run dev
-```
-Visit 👉 `http://localhost:3000`
-
-### 5. Production Build
-```bash
-npm run build
-npm run start
 ```
 
 ---
@@ -90,14 +98,10 @@ npm run start
 
 ## 🌐 Deployment
 This project is deployed on **Vercel**.  
-👉 [Live Demo](https://<your-vercel-app>.vercel.app)  
+👉 [Live Demo](https://student-grade-system-nu.vercel.app/)  
 
 ---
 
 ## 📁 Sample Data
 Use the included [`sample_data.xlsx`](./sample_data.xlsx) file to test uploading functionality.
 
----
-
-## 📜 License
-This project is licensed under the **MIT License**.
