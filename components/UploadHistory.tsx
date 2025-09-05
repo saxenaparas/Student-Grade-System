@@ -8,9 +8,10 @@ type Upload = {
   createdAt: string;
 };
 
-export default function UploadHistory() {
+export default function UploadHistory({ onCleared }: { onCleared?: () => void }) {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -27,11 +28,68 @@ export default function UploadHistory() {
 
   useEffect(() => { load(); }, []);
 
+  async function clearUploads() {
+    if (!confirm("Are you sure you want to clear upload history? This cannot be undone.")) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/uploads/clear", { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Cleared ${data.deletedCount} upload records`);
+        await load();
+      } else {
+        alert(data?.error || "Failed to clear upload history");
+      }
+    } catch (e: any) {
+      alert(e?.message || "Failed to clear upload history");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clearStudents() {
+    if (!confirm("Are you sure you want to DELETE ALL students? This cannot be undone.")) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/students/clear", { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Deleted ${data.deletedCount} students`);
+        onCleared && onCleared();
+        await load();
+      } else {
+        alert(data?.error || "Failed to delete students");
+      }
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete students");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div>
       <div className="mb-4 flex justify-between items-center">
         <h2 className="text-lg font-semibold">Upload History ({uploads.length})</h2>
-        <button onClick={load} className="px-3 py-1 border rounded">Refresh</button>
+        <div className="flex gap-2">
+          <button onClick={load} className="px-3 py-1 border rounded" disabled={loading || busy}>Refresh</button>
+          <button
+            onClick={clearUploads}
+            className="px-3 py-1 bg-red-500 text-white rounded"
+            disabled={busy}
+            title="Clear upload history"
+          >
+            {busy ? "Working..." : "Clear History"}
+          </button>
+          <button
+            onClick={clearStudents}
+            className="px-3 py-1 bg-red-700 text-white rounded"
+            disabled={busy}
+            title="Delete all students"
+          >
+            {busy ? "Working..." : "Delete All Students"}
+          </button>
+        </div>
       </div>
 
       {loading ? (

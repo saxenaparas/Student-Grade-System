@@ -1,0 +1,14 @@
+// app/api/uploads/clear/route.ts
+import dbConnect from "@/lib/mongodb";
+import Upload from "@/models/Upload";
+import { NextResponse } from "next/server";
+
+export async function DELETE() {
+  await dbConnect();
+  try {
+    const res = await Upload.deleteMany({});
+    return NextResponse.json({ success: true, deletedCount: res.deletedCount ?? 0 });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message || String(err) }, { status: 500 });
+  }
+}

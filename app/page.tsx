@@ -22,7 +22,7 @@ export default function Home() {
           </div>
 
           <div className="p-6 bg-white rounded shadow">
-            <UploadHistory />
+            <UploadHistory onCleared={() => setTick((t) => t + 1)} />
           </div>
         </div>
       </div>
